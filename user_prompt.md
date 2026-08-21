@@ -1,9 +1,5 @@
 ---
 
-### 📄 Archivo 2: `user_prompt.md`
-
-Guarda este archivo con el nombre exacto `user_prompt.md`:
-
 ```markdown
 # USER PROMPT: Plantilla de Ejecución Puntual de Pedido
 
