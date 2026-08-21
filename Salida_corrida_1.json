@@ -1,0 +1,29 @@
+{
+  "estado_pedido": "PROCESADO_OK",
+  "cliente": {
+    "identificador": "CLI-045",
+    "nombre_detectado": "Bistró Luna"
+  },
+  "items": [
+    {
+      "codigo_producto": "PROD-010",
+      "nombre_original": "5 bolsas de papa negra",
+      "nombre_estandar": "Papa Negra",
+      "cantidad": 5.0,
+      "unidad_medida": "Bolsa",
+      "valido": true,
+      "motivo_duda": null
+    },
+    {
+      "codigo_producto": "PROD-030",
+      "nombre_original": "10 kg de zanahoria",
+      "nombre_estandar": "Zanahoria",
+      "cantidad": 10.0,
+      "unidad_medida": "Kg",
+      "valido": true,
+      "motivo_duda": null
+    }
+  ],
+  "resumen_operativo": "Pedido procesado correctamente con 2 ítems.",
+  "accion_sugerida": "REGISTRAR_VENTA"
+}

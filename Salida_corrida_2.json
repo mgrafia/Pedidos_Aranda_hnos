@@ -1,0 +1,38 @@
+{
+  "estado_pedido": "REQUIERE_REVISION",
+  "cliente": {
+    "identificador": null,
+    "nombre_detectado": "No especificado"
+  },
+  "items": [
+    {
+      "codigo_producto": null,
+      "nombre_original": "3 de tomate",
+      "nombre_estandar": "Tomate (Variedad indeterminada)",
+      "cantidad": 3.0,
+      "unidad_medida": null,
+      "valido": false,
+      "motivo_duda": "Falta unidad y variedad de tomate."
+    },
+    {
+      "codigo_producto": null,
+      "nombre_original": "lechuga criolla",
+      "nombre_estandar": "Lechuga",
+      "cantidad": null,
+      "unidad_medida": null,
+      "valido": false,
+      "motivo_duda": "Cantidad y unidad no especificadas; variedad fuera de catálogo."
+    },
+    {
+      "codigo_producto": null,
+      "nombre_original": "algo de apio",
+      "nombre_estandar": "Apio",
+      "cantidad": null,
+      "unidad_medida": null,
+      "valido": false,
+      "motivo_duda": "Cantidad no numérica ('algo de apio')."
+    }
+  ],
+  "resumen_operativo": "Pedido con 3 ítems con faltantes de información crítica.",
+  "accion_sugerida": "DERIVAR_A_REVISION_HUMANA"
+}

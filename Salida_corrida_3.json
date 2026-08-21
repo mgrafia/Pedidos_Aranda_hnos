@@ -1,0 +1,29 @@
+{
+  "estado_pedido": "PROCESADO_OK",
+  "cliente": {
+    "identificador": "CLI-012",
+    "nombre_detectado": "Catering Gourmet"
+  },
+  "items": [
+    {
+      "codigo_producto": "PROD-011",
+      "nombre_original": "2 caj y medio de tomate redondo",
+      "nombre_estandar": "Tomate Redondo",
+      "cantidad": 2.5,
+      "unidad_medida": "Cajón",
+      "valido": true,
+      "motivo_duda": null
+    },
+    {
+      "codigo_producto": "PROD-020",
+      "nombre_original": "6 paq de rucula",
+      "nombre_estandar": "Rúcula",
+      "cantidad": 6.0,
+      "unidad_medida": "Paquete",
+      "valido": true,
+      "motivo_duda": null
+    }
+  ],
+  "resumen_operativo": "Pedido procesado correctamente con normalización de fracciones.",
+  "accion_sugerida": "REGISTRAR_VENTA"
+}
