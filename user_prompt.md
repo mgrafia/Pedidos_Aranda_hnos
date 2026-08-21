@@ -1,6 +1,3 @@
----
-
-```markdown
 # USER PROMPT: Plantilla de Ejecución Puntual de Pedido
 
 ## [PIEZA 3: TAREA]
