@@ -48,9 +48,9 @@ Las 3 salidas estructuradas se encuentran adjuntas en los archivos independiente
 
 ---
 
-## 5. Reflexión: Qué aprendí del Contrato
+## 5. Reflexión:
 
-El desarrollo iterativo de este contrato evidenció que la mayor dificultad en agentes para negocios reales no radica en la capacidad de comprensión del lenguaje, sino en **delimitar los márgenes de certeza**.
+El desarrollo iterativo de este agente evidenció que la mayor dificultad en agentes para negocios reales no radica en la capacidad de comprensión del lenguaje, sino en **delimitar los márgenes de certeza**.
 
 1. **La complacencia del modelo:** Por defecto, los LLM tienden a "completar huecos" para agradar al usuario (asumiendo kilos o variedades comunes). En un entorno transaccional, esto genera costos reales. La restricción explícita de "prohibido asumir" es indispensable.
 2. **Desacople System/User:** Separar las reglas estáticas y el esquema JSON en el *System Prompt* permite que el *User Prompt* sea ligero, dinámico y reutilizable en cada ejecución sin saturar la ventana de contexto.
