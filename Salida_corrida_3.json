@@ -1,9 +1,10 @@
 {
-  "estado_pedido": "PROCESADO_OK",
+  "estado_pedido": "REQUIERE_REVISION",
   "cliente": {
     "identificador": "CLI-012",
     "nombre_detectado": "Catering Gourmet"
   },
+  "fecha_entrega_solicitada": "2026-08-27",
   "items": [
     {
       "codigo_producto": "PROD-011",
@@ -22,8 +23,17 @@
       "unidad_medida": "Paquete",
       "valido": true,
       "motivo_duda": null
+    },
+    {
+      "codigo_producto": null,
+      "nombre_original": "y unas paltas",
+      "nombre_estandar": null,
+      "cantidad": null,
+      "unidad_medida": null,
+      "valido": false,
+      "motivo_duda": "Producto fuera de catálogo."
     }
   ],
-  "resumen_operativo": "Pedido procesado correctamente con normalización de fracciones.",
-  "accion_sugerida": "REGISTRAR_VENTA"
+  "resumen_operativo": "Pedido con 2 ítems válidos (normalización de fracciones incluida) y 1 ítem fuera de catálogo pendiente de confirmar con el cliente.",
+  "accion_sugerida": "DERIVAR_A_REVISION_HUMANA"
 }

@@ -4,35 +4,36 @@
     "identificador": null,
     "nombre_detectado": "No especificado"
   },
+  "fecha_entrega_solicitada": null,
   "items": [
     {
       "codigo_producto": null,
       "nombre_original": "3 de tomate",
-      "nombre_estandar": "Tomate (Variedad indeterminada)",
+      "nombre_estandar": "Tomate (Variedad/unidad indeterminada)",
       "cantidad": 3.0,
       "unidad_medida": null,
       "valido": false,
-      "motivo_duda": "Falta unidad y variedad de tomate."
+      "motivo_duda": "Falta unidad de medida (Kilo o Cajón) y variedad de tomate."
     },
     {
       "codigo_producto": null,
       "nombre_original": "lechuga criolla",
-      "nombre_estandar": "Lechuga",
+      "nombre_estandar": null,
       "cantidad": null,
       "unidad_medida": null,
       "valido": false,
-      "motivo_duda": "Cantidad y unidad no especificadas; variedad fuera de catálogo."
+      "motivo_duda": "Producto fuera de catálogo."
     },
     {
       "codigo_producto": null,
       "nombre_original": "algo de apio",
-      "nombre_estandar": "Apio",
+      "nombre_estandar": null,
       "cantidad": null,
       "unidad_medida": null,
       "valido": false,
-      "motivo_duda": "Cantidad no numérica ('algo de apio')."
+      "motivo_duda": "Producto fuera de catálogo y cantidad no numérica ('algo de apio')."
     }
   ],
-  "resumen_operativo": "Pedido con 3 ítems con faltantes de información crítica.",
+  "resumen_operativo": "Pedido con 3 ítems con faltantes de información crítica y productos fuera de catálogo.",
   "accion_sugerida": "DERIVAR_A_REVISION_HUMANA"
 }

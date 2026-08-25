@@ -4,6 +4,7 @@
     "identificador": "CLI-045",
     "nombre_detectado": "Bistró Luna"
   },
+  "fecha_entrega_solicitada": "2026-08-28",
   "items": [
     {
       "codigo_producto": "PROD-010",
@@ -17,9 +18,9 @@
     {
       "codigo_producto": "PROD-030",
       "nombre_original": "10 kg de zanahoria",
-      "nombre_estandar": "Zanahoria",
+      "nombre_estandar": "Zanahoria Elegida",
       "cantidad": 10.0,
-      "unidad_medida": "Kg",
+      "unidad_medida": "Kilo",
       "valido": true,
       "motivo_duda": null
     }
