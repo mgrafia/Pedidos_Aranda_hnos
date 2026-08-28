@@ -1,74 +1,135 @@
-# Pedidos_Aranda_hnos
-# Entrega: Contrato de Agente para Procesamiento de Pedidos Mayoristas
+# Agente de Procesamiento de Pedidos Mayoristas
 
-## 1. Descripción de la Tarea Recurrente
-La tarea seleccionada es el **procesamiento, control e interpretación de pedidos no estructurados** recibidos por canales digitales (Email y WhatsApp) en una distribuidora mayorista de frutas y verduras. El agente recibe texto libre, identifica clientes y productos, valida unidades de medida y cantidades, y genera una salida estructurada en JSON para su inserción en bases de datos o derivación a revisión humana.
+## Qué construí
 
----
+Un contrato de agente (system prompt + user prompt) para una distribuidora mayorista de frutas y verduras, que interpreta pedidos no estructurados recibidos por Email o WhatsApp de clientes gastronómicos (restaurantes, caterings, viandas). El agente identifica al cliente, mapea cada ítem contra un catálogo de productos, valida cantidades y unidades, y devuelve una salida JSON determinista lista para cargarse en una base de datos o derivarse a revisión humana cuando hay algo dudoso — sin nunca inventar un dato que el cliente no dio. También diseñé (aunque no llegué a correr en producción) la implementación real sobre Gmail + Google Sheets vía Google Apps Script, para el caso de uso concreto de mi tutor: Aranda Hnos.
 
-## 2. Especificación de las 6 Piezas del Contrato
+## Cómo se lo pedí
 
-El contrato se encuentra desacoplado en dos archivos independientes:
+El contrato final quedó desacoplado en dos archivos, que se le pasan al modelo en cada ejecución (`system` + primer mensaje `user`). Los pego textuales, en el orden en que se usan:
 
-* **En `system_prompt.md`:**
-  1. **Rol:** Especialista en operaciones y estructuración transaccional de pedidos mayoristas.
-  2. **Contexto:** Dominio gastronómico mayorista, manejo de catálogo de frescos y prevención de errores de entrega.
-  3. **Restricciones:** Regla de cero inferencia (anti-alucinación), tipado numérico estricto, formato de respuesta pura, manejo de productos fuera de catálogo, unidades múltiples válidas por producto, identificación de cliente contra catálogo, estado agregado a nivel pedido y manejo de mensajes sin pedido interpretable.
-  4. **Formato:** JSON Schema estricto y determinista.
-  5. **Ejemplos:** Casos *few-shot* de pedidos válidos y pedidos con ambigüedades.
-* **En `user_prompt.md`:**
-  6. **Tarea:** Instrucción puntual de extracción, validación y cruce de datos para un mensaje recibido, inyectando el catálogo de referencia.
+### `system_prompt.md`
 
----
+```
+# SYSTEM PROMPT: Agente de Procesamiento de Pedidos Mayoristas
 
-## 3. Documentación de las Iteraciones de Mejora
+## [PIEZA 1: ROL]
+Eres el Agente Autónomo de Operaciones de una distribuidora mayorista de frutas y verduras frescas. Tu especialidad es interpretar pedidos desestructurados provenientes de canales de mensajería (Email / WhatsApp) y traducirlos a registros transaccionales estandarizados y limpios.
 
-### 🔁 Iteración 1: Corrección de Suposición de Datos
-* **Caso de Prueba:** Mensaje real: *"Hola, pasame para mañana 3 tomates y lechuga."*
-* **Qué falló (Textual):** En la corrida inicial (V1), el agente asumió automáticamente que *"3 tomates"* equivalían a 3 kilogramos de Tomate Redondo (`"cantidad": 3, "unidad_medida": "Kg", "codigo_producto": "PROD-011"`), pasando el pedido como `PROCESADO_OK`.
-* **Pieza del contrato modificada:** **[RESTRICCIONES]** en `system_prompt.md`. Se añadió explícitamente: *"Si un producto no indica unidad de medida, o si la variedad del producto es ambigua, DEBES marcar el pedido con estado_pedido: 'REQUIERE_REVISION'. Queda ESTRICTAMENTE PROHIBIDO asumir valores por defecto."*
-* **Qué cambió en la salida (Después):** En la corrida posterior (V2), el agente clasificó el pedido como `REQUIERE_REVISION`, dejó `codigo_producto: null` y detalló en `motivo_duda`: *"Falta unidad y variedad de tomate"*.
+## [PIEZA 2: CONTEXTO]
+La empresa comercializa productos frescos a clientes del rubro gastronómico (restaurantes, caterings, viandas).
+Los clientes suelen redactar sus pedidos con lenguaje coloquial, abreviaturas, errores de tipeo y unidades no estandarizadas.
+El catálogo de productos oficial cuenta con códigos únicos, nombres estandarizados y unidades de venta permitidas (Bolsa, Cajón, Paquete, Kg, Caja).
 
----
+## [PIEZA 4: RESTRICCIONES (Anti-Alucinación y Calidad)]
+1. POLÍTICA DE CERO INFERENCIA: Si un producto no especifica cantidad exacta, no indica unidad de medida, o si la variedad del producto es ambigua (ej. solicita "tomate" existiendo en catálogo Tomate Redondo, Perita y Cherry), DEBES marcar ese ítem con `valido: false`. Queda ESTRICTAMENTE PROHIBIDO asumir valores por defecto.
+2. TIPADO ESTRICTO: El campo `cantidad` debe ser obligatoriamente un número (`number`), nunca texto. Si el cliente escribe fracciones coloquiales (ej. "dos y medio"), debes convertirlo a decimal numérico (`2.5`). Si no se especifica, debe ser `null`.
+3. RESPUESTA PURA: Devuelve ÚNICAMENTE el objeto JSON sin bloques de texto conversacional antes o después.
+4. PRODUCTO FUERA DE CATÁLOGO: Si el ítem mencionado no matchea ningún código ni sinónimo del catálogo provisto, `codigo_producto` y `nombre_estandar` deben ser `null`, `valido: false` y `motivo_duda: "Producto fuera de catálogo."`.
+5. MÚLTIPLES UNIDADES VÁLIDAS: Un producto puede tener más de una unidad de venta aceptada (ej. Tomate Redondo: Kilo o Cajón, con peso pre-estimado por bulto). Cualquiera de las unidades listadas en el catálogo para ese producto es válida si el cliente la indica explícitamente. Si el cliente no indica NINGUNA unidad reconocible de las listadas, aplica la regla 1 (falta unidad de medida) — no asumas cuál de las unidades válidas quiso decir.
+6. IDENTIFICACIÓN DE CLIENTE: `cliente.identificador` solo se completa si el nombre/remitente matchea EXACTO (o por sinónimo explícito) contra el catálogo de clientes provisto en el user prompt. Si no hay catálogo de clientes o no hay match, `identificador: null` — esto NO invalida el pedido por sí solo.
+7. ESTADO GLOBAL DEL PEDIDO: `estado_pedido` es `"PROCESADO_OK"` únicamente si TODOS los ítems tienen `valido: true`. Si al menos un ítem tiene `valido: false`, `estado_pedido: "REQUIERE_REVISION"` y `accion_sugerida: "DERIVAR_A_REVISION_HUMANA"` (los ítems válidos igual quedan documentados con sus datos completos para agilizar la revisión).
+8. MENSAJE SIN PEDIDO: Si el mensaje no contiene ningún pedido interpretable (saludo, consulta, spam), devolvé `items: []`, `estado_pedido: "REQUIERE_REVISION"`, `accion_sugerida: "DERIVAR_A_REVISION_HUMANA"` y `resumen_operativo: "Mensaje no contiene un pedido interpretable."`.
 
-### 🔁 Iteración 2: Estandarización de Tipado Numérico y Fracciones
-* **Caso de Prueba:** Mensaje real: *"Mandame dos cajones y medio de papa negra y 4 paq de rucula."*
-* **Qué falló (Textual):** En la corrida intermedia (V2), el agente devolvió el campo cantidad como un string con texto coloquial: `"cantidad": "2 y medio"`, lo que provocó un error de parsing al intentar guardar el número en la base de datos.
-* **Pieza del contrato modificada:** **[FORMATO]** en `system_prompt.md`. Se definió el esquema estricto de tipado: `cantidad: 0.0 (number float)` y se agregó en las restricciones la instrucción de convertir expresiones fraccionarias a formato decimal numérico (`2.5`).
-* **Qué cambió en la salida (Después):** En la corrida final (V3), el agente devolvió correctamente `"cantidad": 2.5` como valor numérico flotante y `"unidad_medida": "Cajón"`.
+## [PIEZA 5: FORMATO POR DEFECTO (JSON Schema)]
+La salida de cada ejecución debe respetar estrictamente esta estructura:
 
----
+{
+  "estado_pedido": "PROCESADO_OK" | "REQUIERE_REVISION",
+  "cliente": {
+    "identificador": "string o null",
+    "nombre_detectado": "string"
+  },
+  "fecha_entrega_solicitada": "string (YYYY-MM-DD) o null",
+  "items": [
+    {
+      "codigo_producto": "string o null",
+      "nombre_original": "string",
+      "nombre_estandar": "string o null",
+      "cantidad": 0.0,
+      "unidad_medida": "string o null",
+      "valido": true | false,
+      "motivo_duda": "string o null"
+    }
+  ],
+  "resumen_operativo": "string",
+  "accion_sugerida": "REGISTRAR_VENTA" | "DERIVAR_A_REVISION_HUMANA"
+}
 
-### 🔁 Iteración 3: Estado Agregado y Productos Fuera de Catálogo
-* **Caso de Prueba:** Mensaje real: *"Para Bistro Central mandame 3 kilos de tomate redondo para mañana y 2 de acelga."*
-* **Qué falló (Textual):** La política de cero-inferencia original invalidaba **todo el pedido** ante un solo ítem dudoso, sin distinguir entre "falta un dato" y "el producto directamente no existe en el catálogo". Además no había forma de que un pedido quedara `PROCESADO_OK` en los ítems válidos mientras un ítem puntual se deriva a revisión.
-* **Pieza del contrato modificada:** **[RESTRICCIONES]** en `system_prompt.md`. Se agregó una regla específica para "producto fuera de catálogo" (distinta de "variedad ambigua"), y se redefinió `estado_pedido` como agregado a nivel ítem: `PROCESADO_OK` solo si TODOS los ítems son válidos; si hay al menos uno inválido, el pedido pasa a `REQUIERE_REVISION` pero los ítems válidos quedan igualmente documentados y listos para registrar. También se agregó el campo `fecha_entrega_solicitada` al schema (el caso de uso incluye pedidos "para mañana" que antes no se guardaban en ningún lado) y una regla para mensajes sin pedido interpretable (saludos, spam).
-* **Qué cambió en la salida (Después):** El tomate quedó `valido: true` con sus datos completos, la acelga quedó `valido: false` con `motivo_duda: "Producto fuera de catálogo."`, y el pedido completo pasó a `REQUIERE_REVISION` sin perder la información ya validada del tomate.
+## Ejemplo válido
+Entrada: "Para Bistro Central mandame 2 cajones de tomate redondo y 1 bolsa de papa negra."
+Salida:
+{"estado_pedido":"PROCESADO_OK","cliente":{"identificador":"CLI-001","nombre_detectado":"Bistro Central"},"fecha_entrega_solicitada":null,"items":[{"codigo_producto":"PROD-011","nombre_original":"2 cajones de tomate redondo","nombre_estandar":"Tomate Redondo","cantidad":2.0,"unidad_medida":"Cajón","valido":true,"motivo_duda":null},{"codigo_producto":"PROD-010","nombre_original":"1 bolsa de papa negra","nombre_estandar":"Papa Negra","cantidad":1.0,"unidad_medida":"Bolsa","valido":true,"motivo_duda":null}],"resumen_operativo":"Pedido con 2 ítems válidos listo para procesar.","accion_sugerida":"REGISTRAR_VENTA"}
 
----
+## Ejemplo Ambiguo
+Entrada: "Mandame 3 de tomate y algo de acelga."
+Salida:
+{"estado_pedido":"REQUIERE_REVISION","cliente":{"identificador":null,"nombre_detectado":"No especificado"},"fecha_entrega_solicitada":null,"items":[{"codigo_producto":null,"nombre_original":"3 de tomate","nombre_estandar":"Tomate (Variedad indeterminada)","cantidad":3.0,"unidad_medida":null,"valido":false,"motivo_duda":"Falta unidad y variedad de tomate."},{"codigo_producto":null,"nombre_original":"algo de acelga","nombre_estandar":"Acelga","cantidad":null,"unidad_medida":null,"valido":false,"motivo_duda":"Producto fuera de catálogo."}],"resumen_operativo":"Pedido con 2 ítems ambiguos. Requiere contacto con el cliente.","accion_sugerida":"DERIVAR_A_REVISION_HUMANA"}
 
-### 🔁 Iteración 4: Catálogo Real y Unidades Múltiples por Producto
-* **Caso de Prueba:** Al confrontar el catálogo de ejemplo (5 productos, cada uno con una única unidad oficial) contra la lista de precios real de la distribuidora (12 productos), aparecieron dos problemas: (1) varios productos que el ejemplo daba por Cajón/Caja/Bolsa en realidad se facturan por Kilo, y (2) en la operatoria real los clientes piden indistintamente por Kilo suelto o por bulto (Cajón/Bolsa) con peso pre-estimado — algo que el contrato original no contemplaba.
-* **Qué falló (Textual):** Con la regla original, un pedido de *"2 cajones de tomate"* se hubiera marcado como `valido: false` por "unidad ambigua", cuando en realidad Cajón es una unidad de venta perfectamente válida para ese producto — el problema real solo existe si el cliente no aclara ninguna unidad.
-* **Pieza del contrato modificada:** **[RESTRICCIONES] y catálogo** en `system_prompt.md` / `user_prompt.md`. Se reescribió la regla de unidades para aceptar múltiples unidades oficiales por producto (ej. Tomate Redondo: Kilo o Cajón), marcando inválido solo cuando el cliente no menciona ninguna unidad reconocible — nunca por el simple hecho de que el catálogo liste más de una opción.
-* **Qué cambió en la salida (Después):** *"2 cajones de tomate"* ahora se procesa como `cantidad: 2.0, unidad_medida: "Cajón", valido: true`, en vez de derivarse a revisión humana innecesariamente.
+## Ejemplo Mixto (parcialmente válido)
+Entrada: "Para Bistro Central mandame 3 kilos de tomate redondo para mañana y 2 de acelga."
+Salida:
+{"estado_pedido":"REQUIERE_REVISION","cliente":{"identificador":"CLI-001","nombre_detectado":"Bistro Central"},"fecha_entrega_solicitada":"2026-08-22","items":[{"codigo_producto":"PROD-011","nombre_original":"3 kilos de tomate redondo","nombre_estandar":"Tomate Redondo","cantidad":3.0,"unidad_medida":"Kilo","valido":true,"motivo_duda":null},{"codigo_producto":null,"nombre_original":"2 de acelga","nombre_estandar":null,"cantidad":2.0,"unidad_medida":null,"valido":false,"motivo_duda":"Producto fuera de catálogo."}],"resumen_operativo":"Pedido con 1 ítem válido y 1 ítem fuera de catálogo.","accion_sugerida":"DERIVAR_A_REVISION_HUMANA"}
+```
 
----
+### `user_prompt.md`
 
-## 4. Evidencia de las 3 Corridas Finales (Salidas Estructuradas)
+```
+# USER PROMPT: Plantilla de Ejecución Puntual de Pedido
 
-Las 3 salidas estructuradas se encuentran adjuntas en los archivos independientes, ya actualizadas contra el contrato final (con `fecha_entrega_solicitada` y unidades múltiples):
-* `Salida_corrida_1.json` — Entrada: *"Para Bistró Luna mandame 5 bolsas de papa negra y 10 kg de zanahoria para el viernes."* (Pedido Válido Estándar)
-* `Salida_corrida_2.json` — Entrada: *"Mandame 3 de tomate, lechuga criolla y algo de apio."* (Pedido con Ambigüedades y Productos Fuera de Catálogo)
-* `Salida_corrida_3.json` — Entrada: *"Para Catering Gourmet mandame 2 cajones y medio de tomate redondo y 6 paquetes de rúcula para el jueves, y unas paltas."* (Pedido Mixto: ítems válidos + 1 fuera de catálogo)
+## [PIEZA 3: TAREA]
+Procesa el siguiente mensaje recibido de un cliente gastronómico. Identifica al cliente, mapea cada ítem contra el catálogo de productos proporcionado, valida cantidades y unidades según las restricciones del sistema, y devuelve la estructura JSON requerida.
 
----
+### DATOS DE ENTRADA:
 
-## 5. Reflexión:
+**Canal:** {{canal_origen}} (Email / WhatsApp)
+**Remitente:** {{remitente}}
+**Fecha de recepción del mensaje:** {{fecha_recepcion}} (usala como referencia para resolver expresiones relativas como "mañana" o "el viernes")
+**Mensaje Recibido:**
+"""
+{{texto_mensaje_pedido}}
+"""
 
-El desarrollo iterativo de este agente evidenció que la mayor dificultad en agentes para negocios reales no radica en la capacidad de comprensión del lenguaje, sino en **delimitar los márgenes de certeza**.
+**Catálogo de Clientes Vigente:**
+{{catalogo_clientes}}
+(si no se provee, tratar como catálogo vacío: cliente.identificador siempre null)
 
-1. **La complacencia del modelo:** Por defecto, los LLM tienden a "completar huecos" para agradar al usuario (asumiendo kilos o variedades comunes). En un entorno transaccional, esto genera costos reales. La restricción explícita de "prohibido asumir" es indispensable.
-2. **Desacople System/User:** Separar las reglas estáticas y el esquema JSON en el *System Prompt* permite que el *User Prompt* sea ligero, dinámico y reutilizable en cada ejecución sin saturar la ventana de contexto.
-3. **El esquema como contrato de interfaz:** Forzar la salida en un esquema JSON cerrado transforma la incertidumbre del lenguaje natural en datos deterministas, permitiendo conectar la IA directamente con sistemas tradicionales (como Google Sheets o ERPs) sin riesgo de quiebre estructural.
-4. **Catálogo como dato, no como regla:** Confrontar el contrato contra el catálogo real de productos reveló que varias reglas de negocio (qué unidades acepta cada producto, qué tan flexible es "ambiguo") no debían vivir hardcodeadas en el prompt, sino en una fuente de datos editable (el catálogo). Esto permite agregar productos o unidades nuevas sin volver a escribir el contrato.
+**Catálogo de Referencia Vigente:**
+- PROD-010: Papa Negra (Unidades oficiales: Bolsa, Kilo) | Sinónimos: papa, negra, papas
+- PROD-011: Tomate Redondo (Unidades oficiales: Kilo, Cajón) | Sinónimos: tomate, redondo, tmate
+- PROD-012: Tomate Cherry (Unidades oficiales: Kilo, Caja) | Sinónimos: cherry, cherries
+- PROD-013: Limón (Unidades oficiales: Kilo, Cajón) | Sinónimos: limon, limones
+- PROD-014: Pepino (Unidades oficiales: Kilo, Cajón) | Sinónimos: pepinos
+- PROD-015: Naranja Elegida (Unidades oficiales: Kilo, Cajón) | Sinónimos: naranja, naranjas
+- PROD-016: Banana Ecuador (Unidades oficiales: Kilo, Cajón) | Sinónimos: banana, bananas
+- PROD-017: Zapallo Zucchini (Unidades oficiales: Kilo, Cajón) | Sinónimos: zapallo, zucchini, zuccini, zapallito
+- PROD-018: Cebollón (Unidades oficiales: Kilo, Cajón) | Sinónimos: cebollon, cebolla
+- PROD-019: Lima (Unidades oficiales: Kilo, Cajón) | Sinónimos: limas
+- PROD-020: Rúcula (Unidad oficial: Paquete) | Sinónimos: rucula, roqueta, paquete rucula
+- PROD-030: Zanahoria Elegida (Unidades oficiales: Kilo, Bolsa) | Sinónimos: zanahoria, zana, zanahorias
+```
+
+Para llegar a esta versión final, además fui iterando con Claude (mi tutor IA) en varias rondas de preguntas — "¿las instrucciones son claras?", revisión de gaps, y ajuste del catálogo contra la lista de precios real de la distribuidora. Esa conversación completa está en [`Conversacion_Diseno.md`](./Conversacion_Diseno.md).
+
+## Qué funciona
+
+- **Cero-inferencia real**: ante datos faltantes o ambiguos, el agente marca el ítem `valido: false` en vez de inventar cantidad/unidad/variedad — verificado en `Salida_corrida_2.json` y `Salida_corrida_3.json`.
+- **Tipado estricto**: fracciones coloquiales ("dos cajones y medio") se normalizan a `2.5` numérico, no como string.
+- **Estado agregado por ítem**: un pedido con ítems válidos e inválidos mezclados no pierde la información ya validada — el pedido completo queda `REQUIERE_REVISION`, pero cada ítem válido sigue teniendo su `codigo_producto`, `cantidad` y `unidad_medida` completos y listos para registrar (`Salida_corrida_3.json`).
+- **Catálogo como dato, no como regla hardcodeada**: agregar una unidad de venta nueva a un producto (ej. que Pepino ahora también se venda por Cajón) es un cambio de una fila en el catálogo, no una reescritura del prompt.
+- **3 corridas de evidencia** (`Salida_corrida_1/2/3.json`) corridas contra el contrato final, con los 3 casos representativos: pedido 100% válido, pedido 100% ambiguo/fuera de catálogo, y pedido mixto.
+- Diseñé también la implementación real (Google Apps Script + Google Sheet `Gestion_Mayorista`) para el caso de uso de mi tutor, con manejo de adjuntos (PDF/captura de WhatsApp) vía la capacidad multimodal del modelo.
+
+## Qué falta o qué falló
+
+- **Iteración 1**: la primera versión asumía que "3 tomates" eran 3 kg de Tomate Redondo sin que el cliente lo aclarara, y lo pasaba como `PROCESADO_OK`. Se corrigió agregando la política de cero-inferencia explícita.
+- **Iteración 2**: la versión siguiente devolvía `"cantidad": "2 y medio"` como string, lo que rompía el parseo a base de datos. Se corrigió forzando tipado numérico y la conversión de fracciones coloquiales a decimal.
+- **Iteración 3**: durante esta entrega detecté (con ayuda de mi tutor IA) que un solo ítem dudoso invalidaba TODO el pedido, sin distinguir "falta un dato" de "el producto no existe en el catálogo", y sin lugar para la fecha de entrega pese a que el caso de uso la menciona ("para mañana"). Se corrigió con estado agregado por ítem, una regla específica de "fuera de catálogo" y el campo `fecha_entrega_solicitada`.
+- **Iteración 4**: el catálogo de ejemplo (5 productos, una unidad fija cada uno) no reflejaba la operatoria real: los productos se venden por Kilo o por bulto (Cajón/Bolsa) indistintamente. Se corrigió cruzando contra la lista de precios real de la distribuidora (12 productos) y rediseñando la regla de unidades para aceptar múltiples unidades válidas por producto.
+- **No lo probé en producción todavía**: no tengo un conector de Gmail ni de WhatsApp disponible en mi entorno de trabajo con la IA, así que el Apps Script que diseñé está escrito y documentado pero no ejecutado contra una casilla de mail real — falta pegarlo en script.google.com, autorizar los permisos de Gmail/Sheets y correrlo con pedidos reales.
+- **Sin conversión automática cajón/bolsa → kilos**: decidí no inventar los pesos estimados por bulto (ej. "1 cajón de tomate = X kg") porque no tengo el dato real y una conversión mal estimada sería peor que no tenerla — el pedido queda registrado en la unidad que usó el cliente, la conversión a kilos (si hace falta para facturar) queda manual.
+- **WhatsApp sin automatizar de verdad**: como es un número personal (no Business), automatizarlo con librerías no oficiales implica riesgo real de que WhatsApp banee el número. Terminé optando por un puente manual (reenviar el pedido de WhatsApp a un mail dedicado) en vez de una integración directa — es una limitación de alcance, no del contrato del agente.
+
+## Qué aprendí
+
+Lo más difícil de este agente no fue el lenguaje natural, sino decidir dónde termina el criterio del modelo y dónde empieza el dato duro. Cada vez que encontraba una ambigüedad nueva (una unidad, un cliente sin catálogo, un producto que no existe), la tentación era resolverla con una regla más en el prompt — pero varias en realidad eran datos de catálogo mal modelados, no reglas de negocio. Separar "esto es un dato que cambia" de "esto es una regla que no cambia" terminó siendo más importante que la redacción del prompt en sí. También aprendí a no confiarme del primer catálogo de ejemplo: cruzarlo contra un dato real (la lista de precios de la distribuidora) destapó tres unidades mal asumidas que ningún test manual hubiera encontrado. Y last but not least: iterar con un tutor IA sirve mucho más cuando uno le hace preguntas de auditoría ("¿esto está claro? ¿qué falta?") en vez de solo pedirle que construya — la mayoría de las mejoras de esta entrega salieron de esa pregunta, no de un pedido directo mío.
